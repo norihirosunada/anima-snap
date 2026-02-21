@@ -1,5 +1,72 @@
 # React + TypeScript + Vite
 
+## Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+Default dev URL:
+
+- http://localhost:5174
+
+## Use From Smartphone (Camera)
+
+This app uses camera APIs, so opening via HTTPS is recommended on mobile.
+
+Recommended (one command, Cloudflare):
+
+```bash
+npm run dev:cloudflare
+```
+
+This starts local Vite (if needed) and opens a Cloudflare Tunnel to `http://localhost:5174`.
+
+Run in two terminals:
+
+Terminal 1 (Vite):
+
+```bash
+npm run dev
+```
+
+Terminal 2 (tunnel):
+
+Cloudflare Tunnel:
+
+```bash
+npm run tunnel:cloudflare
+```
+
+Ngrok:
+
+```bash
+npm run tunnel:ngrok
+```
+
+Then open the HTTPS URL shown in the terminal on your smartphone.
+
+### Install tunnel tools (Windows)
+
+Cloudflare:
+
+```bash
+winget install Cloudflare.cloudflared
+```
+
+Ngrok:
+
+```bash
+winget install Ngrok.Ngrok
+```
+
+If you use Ngrok for the first time, set your auth token once:
+
+```bash
+ngrok config add-authtoken <YOUR_TOKEN>
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
