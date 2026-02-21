@@ -47,12 +47,14 @@ export default function App() {
 
   return (
     <div className="relative w-full h-full bg-black">
-      {/* Hidden Admin Button (Top Left) */}
-      <button
-        onClick={() => setScreen('admin')}
-        className="absolute top-0 left-0 w-16 h-16 z-50 opacity-0"
-        aria-label="Admin Interface"
-      />
+      {/* Hidden Admin Button (Top Left) — only on capture screen to avoid overlapping back buttons */}
+      {screen === 'capture' && (
+        <button
+          onClick={() => setScreen('admin')}
+          className="absolute top-0 left-0 w-16 h-16 z-50 opacity-0"
+          aria-label="Admin Interface"
+        />
+      )}
 
       {/* Screens */}
       <div className="absolute inset-0" style={{ display: screen === 'capture' ? 'block' : 'none' }}>
