@@ -201,17 +201,22 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
 
       const onVideoCanPlay = () => startCrossFade();
       const onVideoError = () => runFallback();
+      videoEl.addEventListener('canplay', onVideoCanPlay, { once: true });
       videoEl.addEventListener('loadeddata', onVideoCanPlay, { once: true });
       videoEl.addEventListener('error', onVideoError, { once: true });
 
+      // iOS Safari はロードを明示的に開始しないと loadeddata が発火しない
+      videoEl.load();
+
       // 一定時間ロードできなければフォールバック
-      const tLoadTimeout = setTimeout(runFallback, 6000);
+      const tLoadTimeout = setTimeout(runFallback, 12000);
       if (videoEl.readyState >= 2) startCrossFade();
 
       return () => {
         clearTimeout(tLoadTimeout);
         if (fallbackTimer) clearTimeout(fallbackTimer);
         if (revealTimer) clearTimeout(revealTimer);
+        videoEl.removeEventListener('canplay', onVideoCanPlay);
         videoEl.removeEventListener('loadeddata', onVideoCanPlay);
         videoEl.removeEventListener('error', onVideoError);
         cancelAnimationFrame(fadeFrameRef.current);
@@ -275,6 +280,7 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
           src={videoUrl}
           muted
           playsInline
+          autoPlay
           onEnded={handleVideoEnded}
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: 0 }}

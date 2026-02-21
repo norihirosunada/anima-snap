@@ -338,7 +338,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
 
       {/* Capture button (Minimal) */}
       {captureState === 'idle' && camera.isReady && (
-        <div className="absolute bottom-12 left-0 right-0 z-30 flex justify-center">
+        <div className="absolute bottom-20 left-0 right-0 z-30 flex justify-center">
           <button
             onClick={startScanning}
             className="relative w-16 h-16 rounded-full transition-all active:scale-90 flex items-center justify-center group"
@@ -354,7 +354,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
 
       {/* Cancel scanning */}
       {captureState === 'scanning' && (
-        <div className="absolute bottom-12 left-0 right-0 z-30 flex justify-center">
+        <div className="absolute bottom-20 left-0 right-0 z-30 flex justify-center">
           <button
             onClick={() => setCaptureState('idle')}
             className="px-6 py-3 rounded-full text-sm text-white/60 transition-colors active:bg-white/20"
