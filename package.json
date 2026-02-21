@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tunnel:cloudflare": "cloudflared tunnel --url http://localhost:5174",
+    "tunnel:ngrok": "ngrok http 5174",
+    "dev:cloudflare": "powershell -ExecutionPolicy Bypass -File scripts/dev-cloudflare.ps1"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",
