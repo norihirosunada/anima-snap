@@ -49,12 +49,24 @@ function getApiKey(): string {
   return apiKey;
 }
 
-function bytesToBlobUrl(base64Bytes: string, mimeType: string): string {
-  const binary = atob(base64Bytes);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const blob = new Blob([bytes], { type: mimeType });
-  return URL.createObjectURL(blob);
+async function saveVideoToServer(base64Data: string, mimeType: string): Promise<string> {
+  const response = await fetch('/api/save-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: base64Data, mimeType }),
+  });
+  if (!response.ok) throw new Error(`Failed to save video: ${response.status}`);
+  const json = await response.json() as { url: string };
+  return json.url;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 function sleep(ms: number): Promise<void> {
@@ -580,14 +592,24 @@ export async function generateAwakeningVideo(
     const generated = videos[0];
     if (generated.video?.videoBytes) {
       const mimeType = generated.video.mimeType ?? 'video/mp4';
-      const url = bytesToBlobUrl(generated.video.videoBytes, mimeType);
-      addAdminLog({
-        phase: 'video_generation_success',
-        label: 'Video Generated (Bytes)',
-        payload: { videoUrl: url },
-        durationMs: endTimer(processId),
-      });
-      return url;
+      try {
+        const url = await saveVideoToServer(generated.video.videoBytes, mimeType);
+        addAdminLog({
+          phase: 'video_generation_success',
+          label: 'Video Generated (Bytes → Server)',
+          payload: { videoUrl: url },
+          durationMs: endTimer(processId),
+        });
+        return url;
+      } catch (uploadError) {
+        console.warn('Failed to save video to server, falling back to blob URL:', uploadError);
+        // フォールバック: blob URL
+        const binary = atob(generated.video.videoBytes);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: mimeType });
+        return URL.createObjectURL(blob);
+      }
     }
 
     if (generated.video?.uri) {
@@ -600,26 +622,41 @@ export async function generateAwakeningVideo(
       });
 
       if (uri.startsWith('http://') || uri.startsWith('https://')) {
+        let blob: Blob | null = null;
+        let fetchedMimeType = 'video/mp4';
+
         try {
           const withKey = await fetch(uri, {
             headers: { 'x-goog-api-key': apiKey },
           });
           if (withKey.ok) {
-            const blob = await withKey.blob();
-            return URL.createObjectURL(blob);
+            blob = await withKey.blob();
+            fetchedMimeType = withKey.headers.get('content-type') ?? fetchedMimeType;
           }
         } catch {
           // fall through
         }
 
-        try {
-          const direct = await fetch(uri);
-          if (direct.ok) {
-            const blob = await direct.blob();
+        if (!blob) {
+          try {
+            const direct = await fetch(uri);
+            if (direct.ok) {
+              blob = await direct.blob();
+              fetchedMimeType = direct.headers.get('content-type') ?? fetchedMimeType;
+            }
+          } catch {
+            // no-op
+          }
+        }
+
+        if (blob) {
+          try {
+            const base64 = await blobToBase64(blob);
+            return await saveVideoToServer(base64, fetchedMimeType);
+          } catch (uploadError) {
+            console.warn('Failed to save video to server, falling back to blob URL:', uploadError);
             return URL.createObjectURL(blob);
           }
-        } catch {
-          // no-op
         }
       }
       console.warn('Generated video URI is not directly playable in browser:', uri);

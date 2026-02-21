@@ -12,5 +12,9 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     allowedHosts: true,
+    proxy: {
+      '/api': 'http://localhost:3001',
+      '/videos': 'http://localhost:3001',
+    },
   },
 })
