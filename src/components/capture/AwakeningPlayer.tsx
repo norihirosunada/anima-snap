@@ -49,36 +49,37 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
     const cam = new THREE.PerspectiveCamera(75, w / h, 0.1, 100);
     cam.position.z = 3;
 
-    const COUNT = 3500;
+    const COUNT = 6000;
     const positions = new Float32Array(COUNT * 3);
     const colors = new Float32Array(COUNT * 3);
     const velocities: [number, number, number][] = [];
 
+    // 白・薄白・極淡ブルーのみ — 新生の光
     const palette = [
-      new THREE.Color(0xa855f7),
-      new THREE.Color(0x22d3ee),
-      new THREE.Color(0xfbbf24),
-      new THREE.Color(0xec4899),
       new THREE.Color(0xffffff),
+      new THREE.Color(0xf0f6ff),
+      new THREE.Color(0xe8f4ff),
     ];
 
+    const aspect = w / h;
+    const spreadX = aspect * 2.6; // 画面横幅に合わせた散布範囲
+
     for (let i = 0; i < COUNT; i++) {
-      const r = Math.random() * 0.3;
-      const angle = Math.random() * Math.PI * 2;
-      positions[i * 3] = r * Math.cos(angle);
-      positions[i * 3 + 1] = r * Math.sin(angle) - 0.2;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+      // 画面下部全体からランダムにスポーン（新生感）
+      positions[i * 3] = (Math.random() - 0.5) * spreadX * 2;
+      positions[i * 3 + 1] = -2.8 + Math.random() * 1.2; // 下端付近
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.6;
 
       const c = palette[Math.floor(Math.random() * palette.length)];
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
 
-      const speed = 0.005 + Math.random() * 0.02;
+      const rise = 0.004 + Math.random() * 0.009; // 穏やかな上昇
       velocities.push([
-        (Math.random() - 0.5) * speed,
-        speed * (0.3 + Math.random() * 0.7),
-        (Math.random() - 0.5) * speed * 0.3,
+        (Math.random() - 0.5) * 0.002, // ほぼ真上、わずかな横揺れ
+        rise,
+        (Math.random() - 0.5) * 0.001,
       ]);
     }
 
@@ -87,7 +88,7 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const mat = new THREE.PointsMaterial({
-      size: 0.04,
+      size: 0.015,
       vertexColors: true,
       transparent: true,
       opacity: 0,
@@ -107,17 +108,16 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
         pos.array[i * 3 + 1] += velocities[i][1];
         pos.array[i * 3 + 2] += velocities[i][2];
 
-        const dist = Math.sqrt(pos.array[i * 3] ** 2 + pos.array[i * 3 + 1] ** 2);
-        if (dist > 3 || pos.array[i * 3 + 1] > 2) {
-          const nr = Math.random() * 0.4;
-          const na = Math.random() * Math.PI * 2;
-          pos.array[i * 3] = nr * Math.cos(na);
-          pos.array[i * 3 + 1] = -0.5 + Math.random() * 0.3;
-          pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+        // 画面上端を超えたら下から再スポーン
+        if (pos.array[i * 3 + 1] > 3.0) {
+          pos.array[i * 3] = (Math.random() - 0.5) * aspect * 2.6 * 2;
+          pos.array[i * 3 + 1] = -2.8 - Math.random() * 0.5;
+          pos.array[i * 3 + 2] = (Math.random() - 0.5) * 0.6;
         }
 
-        velocities[i][0] += (Math.random() - 0.5) * 0.0005;
-        velocities[i][1] += (Math.random() - 0.5) * 0.0002;
+        // わずかな横揺れのみ（縦方向は維持）
+        velocities[i][0] += (Math.random() - 0.5) * 0.00015;
+        velocities[i][1] += (Math.random() - 0.5) * 0.00005;
       }
       pos.needsUpdate = true;
       renderer.render(scene, cam);
@@ -137,7 +137,7 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
   useEffect(() => {
     const t = setTimeout(() => {
       setPhase('awakening');
-      intensityRef.current = 0.6;
+      intensityRef.current = 0.38;
     }, 1500);
     return () => clearTimeout(t);
   }, []);
@@ -155,9 +155,9 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
       const runFallback = () => {
         if (crossFadeStarted) return;
         setIsWaitingVideoStart(false);
-        intensityRef.current = 0.8;
+        intensityRef.current = 0.45;
         fallbackTimer = setTimeout(() => {
-          intensityRef.current = 0.3;
+          intensityRef.current = 0.2;
           showReveal();
         }, 1500);
       };
@@ -167,7 +167,7 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
         crossFadeStarted = true;
         setIsWaitingVideoStart(false);
         setPhase('playing');
-        intensityRef.current = 1.0;
+        intensityRef.current = 0.55;
 
         videoEl.play().catch(() => {
           // 再生開始に失敗したら暗転だけで終わるのを避けてフォールバック
@@ -218,9 +218,9 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
       };
     } else {
       // 動画なし: パーティクルのみでリビール
-      intensityRef.current = 0.8;
+      intensityRef.current = 0.45;
       const t = setTimeout(() => {
-        intensityRef.current = 0.3;
+        intensityRef.current = 0.2;
         showReveal();
       }, 1500);
       return () => clearTimeout(t);
@@ -230,7 +230,7 @@ export function AwakeningPlayer({ object, videoUrl, videoReady, onComplete }: Pr
   const showReveal = () => {
     if (revealShownRef.current) return;
     revealShownRef.current = true;
-    intensityRef.current = 0.3;
+    intensityRef.current = 0.18;
     setPhase('reveal');
 
     // snapshot を暗く
