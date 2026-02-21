@@ -149,7 +149,9 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
   const handleAnswer = useCallback(async (question: string, answer: string) => {
     const newAnswers = [...answers, { question, answer }];
     setAnswers(newAnswers);
-    setAffinityScore((prev) => Math.min(100, prev + 5));
+    if (answer !== '無回答') {
+      setAffinityScore((prev) => Math.min(100, prev + 5));
+    }
 
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((i) => i + 1);
@@ -168,7 +170,8 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
           videoPromiseRef.current ?? Promise.resolve(null),
         ]);
 
-        const finalAffinity = Math.min(100, affinityScore + newAnswers.length * 5);
+        const validAnswers = newAnswers.filter(a => a.answer !== '無回答');
+        const finalAffinity = Math.min(100, affinityScore + validAnswers.length * 5);
         const completedObj: AnimismObject = {
           ...newObject,
           personality,
