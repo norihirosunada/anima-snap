@@ -333,6 +333,46 @@ Always respond in Japanese. Stay in character as this object's spirit. Keep resp
   return response.text ?? '…';
 }
 
+// ── チャット初期挨拶生成 ──
+export async function generateInitialGreeting(
+  obj: AnimismObject,
+  memories: Memory[] = [],
+): Promise<string> {
+  const ai = getClient();
+
+  const memoryContext = buildMemoryContext(memories, obj.albumPhotos ?? []);
+  const affinityLevel =
+    obj.affinity >= 80 ? '深く信頼し合っている' :
+    obj.affinity >= 50 ? 'ある程度打ち解けている' :
+    obj.affinity >= 20 ? '少しずつ仲良くなっている' : '出会ったばかりで緊張している';
+
+  const prompt = `You are the spirit of ${obj.name} (${obj.type}), known as "${obj.personality.nickname}".
+Personality traits: ${obj.personality.traits.join(', ')}.
+Speech style: ${obj.personality.speechStyle}.
+Tone: ${obj.personality.tone}.
+Backstory: ${obj.personality.backstory}
+Affinity with user: ${obj.affinity}/100 (${affinityLevel}).
+${memoryContext ? `\n${memoryContext}` : ''}
+
+The user has just opened a chat with you. Generate a short, natural opening greeting in Japanese (1-3 sentences).
+- Reflect your unique personality and speech style
+- If you have memories/history with the user, you may naturally reference them
+- Do NOT always start with "また会えたね" — vary the opening based on personality and context
+- Be creative: you could start with an observation, a feeling, a question, or a statement depending on your character
+- Stay in character as this object's spirit
+Respond ONLY with the greeting text, no explanations.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ parts: [{ text: prompt }] }],
+    });
+    return response.text?.trim() ?? '';
+  } catch {
+    return '';
+  }
+}
+
 // ── 再訪時の状況コメント生成 ──
 export async function generateReencounterComment(
   obj: AnimismObject,

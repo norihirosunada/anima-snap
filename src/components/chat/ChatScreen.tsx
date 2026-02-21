@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { sendChatMessage } from '../../lib/gemini';
+import { sendChatMessage, generateInitialGreeting } from '../../lib/gemini';
 import { getMemories, addMemory } from '../../lib/storage';
 import type { AnimismObject, Memory } from '../../lib/types';
 
@@ -44,23 +44,53 @@ export function ChatScreen({ object, onBack }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isGreeting, setIsGreeting] = useState(true);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [showMemories, setShowMemories] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const historyRef = useRef<Array<{ role: 'user' | 'model'; text: string }>>([]);
 
+  // パーソナリティに応じたフォールバック挨拶
+  const getFallbackGreeting = useCallback(() => {
+    const nick = object.personality.nickname;
+    const affinity = object.affinity;
+    const candidates =
+      affinity >= 80 ? [
+        `ん…来てくれたんだね。${nick}は、ずっと待ってたよ。`,
+        `また会えた。${nick}としての私は、あなたのそばにいつもいる。`,
+        `…声が聞きたかった。何でも話して。`,
+      ] : affinity >= 40 ? [
+        `あ、来てくれたんだ。${nick}として、ゆっくり話そうか。`,
+        `おかえり。…少し、寂しかったかも。`,
+        `${nick}だよ。今日はどんな気分？`,
+      ] : [
+        `…はじめまして、かな。${nick}という名で呼んでほしい。`,
+        `あなたが話しかけてくれるの、待ってた。${nick}だよ。`,
+        `そっか、あなたが私の主人なんだね。よろしく。`,
+      ];
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }, [object.personality.nickname, object.affinity]);
+
   useEffect(() => {
-    setMemories(getMemories(object.id));
-    // Initial greeting
-    const greeting: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'model',
-      text: `…ふふ、また会えたね。${object.personality.nickname}としていつでもここにいるよ。何か話したいことはある？`,
-      timestamp: Date.now(),
-    };
-    setMessages([greeting]);
-    historyRef.current = [{ role: 'model', text: greeting.text }];
-  }, [object.id, object.personality.nickname]);
+    const loadedMemories = getMemories(object.id);
+    setMemories(loadedMemories);
+    setIsGreeting(true);
+    setMessages([]);
+    historyRef.current = [];
+
+    generateInitialGreeting(object, loadedMemories).then((text) => {
+      const greetingText = text || getFallbackGreeting();
+      const greeting: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'model',
+        text: greetingText,
+        timestamp: Date.now(),
+      };
+      setMessages([greeting]);
+      historyRef.current = [{ role: 'model', text: greetingText }];
+      setIsGreeting(false);
+    });
+  }, [object.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -169,7 +199,7 @@ export function ChatScreen({ object, onBack }: Props) {
             </div>
           ))}
 
-          {isSending && (
+          {(isSending || isGreeting) && (
             <div className="flex justify-start gap-2">
               {object.snapshotUrl && (
                 <img src={object.snapshotUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1" />
@@ -206,7 +236,7 @@ export function ChatScreen({ object, onBack }: Props) {
           </div>
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isSending}
+            disabled={!input.trim() || isSending || isGreeting}
             className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-95 disabled:opacity-40"
             style={{ background: 'rgba(168,85,247,0.6)', border: '1px solid rgba(168,85,247,0.8)' }}>
             <span className="text-white text-sm">↑</span>
