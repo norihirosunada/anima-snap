@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    color: #fff;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  #root {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes awakening-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.awakening-ring {
+  animation: awakening-ring 1.5s ease-out infinite;
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.3);
+}
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.6), 0 0 40px rgba(34, 211, 238, 0.3);
+}
+.glow-gold {
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 0 40px rgba(251, 191, 36, 0.3);
+}
+.text-glow {
+  text-shadow: 0 0 10px currentColor;
+}
