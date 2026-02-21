@@ -9,6 +9,7 @@ import {
   hasApiKey,
 } from '../../lib/gemini';
 import { saveObject, recordEncounter, addMemory, getCollectionList, addObjectPhoto } from '../../lib/storage';
+import { captureLocation } from '../../lib/geolocation';
 import type { CaptureState, AnimismObject, QuestionItem, QuestionnaireAnswer } from '../../lib/types';
 import { CameraView } from './CameraView';
 import { QuickReplyModal } from './QuickReplyModal';
@@ -54,6 +55,9 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
     setCaptureState('scanning');
     setAffinityScore(0);
 
+    // 位置情報を並行して取得開始
+    const locationPromise = captureLocation().catch(() => null);
+
     // Auto-capture after 2s
     const timer = setTimeout(async () => {
       if (isProcessingRef.current) return;
@@ -68,7 +72,10 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
       }
 
       try {
-        const collections = getCollectionList();
+        const [collections, location] = await Promise.all([
+          Promise.resolve(getCollectionList()),
+          locationPromise,
+        ]);
         const result = await analyzeFrame(frame, collections);
 
         if (!result.isNew && result.matchedId) {
@@ -76,7 +83,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
           const existing = collections.find((c) => c.id === result.matchedId);
           if (existing) {
             const latestSnapshot = `data:image/jpeg;base64,${frame}`;
-            const updatedObject = addObjectPhoto(existing.id, latestSnapshot) ?? existing;
+            const updatedObject = addObjectPhoto(existing.id, latestSnapshot, location ?? undefined) ?? existing;
             const comment = await generateReencounterComment(existing, frame);
             recordEncounter(updatedObject.id);
             addMemory({
@@ -98,21 +105,23 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
           setCurrentQuestionIndex(0);
 
           // Store partial object data
+          const now = Date.now();
           const partialObj: AnimismObject = {
             id: crypto.randomUUID(),
             name: result.objectName,
             type: result.objectType,
             personality: { traits: [], speechStyle: '', backstory: '', nickname: '', tone: '' },
             affinity: affinityScore,
-            capturedAt: Date.now(),
+            capturedAt: now,
             snapshotUrl: `data:image/jpeg;base64,${frame}`,
             albumPhotos: [{
               id: crypto.randomUUID(),
               url: `data:image/jpeg;base64,${frame}`,
-              timestamp: Date.now(),
+              timestamp: now,
               source: 'initial',
+              ...(location ? { location } : {}),
             }],
-            stats: { totalEncounters: 1, lastSeenAt: Date.now() },
+            stats: { totalEncounters: 1, lastSeenAt: now },
           };
           setNewObject(partialObj);
 

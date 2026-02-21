@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import type { AnalyzeResult, AnimismObject, QuestionnaireAnswer, QuestionItem } from './types';
+import type { AnalyzeResult, AnimismObject, QuestionnaireAnswer, QuestionItem, Memory, AlbumPhoto } from './types';
 import { addAdminLog, startTimer, endTimer } from './logger';
 
 function getClient(): GoogleGenAI {
@@ -257,13 +257,54 @@ Respond ONLY with valid JSON:
   }
 }
 
+// ── 記憶コンテキスト構築 ──
+function buildMemoryContext(memories: Memory[], albumPhotos: AlbumPhoto[]): string {
+  const parts: string[] = [];
+
+  if (memories.length > 0) {
+    const recent = memories.slice(-20); // 最新20件
+    const lines = recent.map((m) => {
+      const date = new Date(m.timestamp).toLocaleDateString('ja-JP', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+      const typeLabel = m.type === 'awakening' ? '✦ 覚醒' : m.type === 're-encounter' ? '☽ 再会' : '✎ 会話';
+      return `- [${date}] ${typeLabel}: ${m.content.slice(0, 100)}`;
+    });
+    parts.push(`過去の思い出・記憶:\n${lines.join('\n')}`);
+  }
+
+  const photosWithLocation = albumPhotos.filter((p) => p.location);
+  if (photosWithLocation.length > 0) {
+    const lines = photosWithLocation.map((p) => {
+      const date = new Date(p.timestamp).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
+      const src = p.source === 'initial' ? '初めての出会い' : p.source === 're-encounter' ? '再会' : '記録';
+      const place = p.location!.placeName ?? `緯度${p.location!.latitude.toFixed(4)}, 経度${p.location!.longitude.toFixed(4)}`;
+      return `- [${date}] ${src} @ ${place}`;
+    });
+    parts.push(`撮影場所の記録:\n${lines.join('\n')}`);
+  } else if (albumPhotos.length > 0) {
+    const lines = albumPhotos.slice(-5).map((p) => {
+      const date = new Date(p.timestamp).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
+      const src = p.source === 'initial' ? '初めての出会い' : p.source === 're-encounter' ? '再会' : '記録';
+      return `- [${date}] ${src}`;
+    });
+    parts.push(`写真の記録:\n${lines.join('\n')}`);
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : '';
+}
+
 // ── チャット ──
 export async function sendChatMessage(
   obj: AnimismObject,
   history: Array<{ role: 'user' | 'model'; text: string }>,
-  userMessage: string
+  userMessage: string,
+  memories: Memory[] = [],
 ): Promise<string> {
   const ai = getClient();
+
+  const memoryContext = buildMemoryContext(memories, obj.albumPhotos ?? []);
 
   const systemContext = `You are the spirit of ${obj.name} (${obj.type}), known as "${obj.personality.nickname}".
 Personality traits: ${obj.personality.traits.join(', ')}.
@@ -271,7 +312,7 @@ Speech style: ${obj.personality.speechStyle}.
 Tone: ${obj.personality.tone}.
 Backstory: ${obj.personality.backstory}
 Affinity with user: ${obj.affinity}/100.
-
+${memoryContext ? `\n${memoryContext}\n\nこれらの記憶・思い出を自然に会話に織り交ぜてください。場所の思い出があれば、その場所について言及することがあります。` : ''}
 Always respond in Japanese. Stay in character as this object's spirit. Keep responses concise (2-4 sentences).`;
 
   const contents = [

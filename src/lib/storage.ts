@@ -1,14 +1,15 @@
-import type { AlbumPhoto, AnimismObject, Memory } from './types';
+import type { AlbumPhoto, AnimismObject, Memory, PhotoLocation } from './types';
 
 const COLLECTIONS_KEY = 'animism_snap_collections';
 const MEMORIES_KEY = 'animism_snap_memories';
 
-function createAlbumPhoto(url: string, timestamp: number, source: AlbumPhoto['source']): AlbumPhoto {
+function createAlbumPhoto(url: string, timestamp: number, source: AlbumPhoto['source'], location?: PhotoLocation): AlbumPhoto {
   return {
     id: crypto.randomUUID(),
     url,
     timestamp,
     source,
+    ...(location ? { location } : {}),
   };
 }
 
@@ -106,14 +107,14 @@ export function recordEncounter(id: string): void {
   localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
 }
 
-export function addObjectPhoto(id: string, snapshotUrl: string): AnimismObject | null {
+export function addObjectPhoto(id: string, snapshotUrl: string, location?: PhotoLocation): AnimismObject | null {
   const collections = getCollections();
   const target = collections[id];
   if (!target) return null;
 
   const nextPhotos = [
     ...(target.albumPhotos ?? []),
-    createAlbumPhoto(snapshotUrl, Date.now(), 're-encounter'),
+    createAlbumPhoto(snapshotUrl, Date.now(), 're-encounter', location),
   ];
 
   const updated: AnimismObject = {
