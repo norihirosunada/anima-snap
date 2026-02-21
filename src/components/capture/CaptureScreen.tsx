@@ -8,7 +8,7 @@ import {
   generateReencounterComment,
   hasApiKey,
 } from '../../lib/gemini';
-import { saveObject, recordEncounter, addMemory, getCollectionList } from '../../lib/storage';
+import { saveObject, recordEncounter, addMemory, getCollectionList, addObjectPhoto } from '../../lib/storage';
 import type { CaptureState, AnimismObject, QuestionItem, QuestionnaireAnswer } from '../../lib/types';
 import { CameraView } from './CameraView';
 import { QuickReplyModal } from './QuickReplyModal';
@@ -74,16 +74,18 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
           // Re-encounter
           const existing = collections.find((c) => c.id === result.matchedId);
           if (existing) {
+            const latestSnapshot = `data:image/jpeg;base64,${frame}`;
+            const updatedObject = addObjectPhoto(existing.id, latestSnapshot) ?? existing;
             const comment = await generateReencounterComment(existing, frame);
-            recordEncounter(existing.id);
+            recordEncounter(updatedObject.id);
             addMemory({
-              objectId: existing.id,
+              objectId: updatedObject.id,
               timestamp: Date.now(),
               type: 're-encounter',
               content: comment,
-              snapshotUrl: `data:image/jpeg;base64,${frame}`,
+              snapshotUrl: latestSnapshot,
             });
-            setReencounterObj(existing);
+            setReencounterObj(updatedObject);
             setReencounterComment(comment);
             setCaptureState('re-encounter');
           }
@@ -103,6 +105,12 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
             affinity: affinityScore,
             capturedAt: Date.now(),
             snapshotUrl: `data:image/jpeg;base64,${frame}`,
+            albumPhotos: [{
+              id: crypto.randomUUID(),
+              url: `data:image/jpeg;base64,${frame}`,
+              timestamp: Date.now(),
+              source: 'initial',
+            }],
             stats: { totalEncounters: 1, lastSeenAt: Date.now() },
           };
           setNewObject(partialObj);

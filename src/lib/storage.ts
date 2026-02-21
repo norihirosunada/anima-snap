@@ -1,12 +1,63 @@
-import type { AnimismObject, Memory } from './types';
+import type { AlbumPhoto, AnimismObject, Memory } from './types';
 
 const COLLECTIONS_KEY = 'animism_snap_collections';
 const MEMORIES_KEY = 'animism_snap_memories';
 
+function createAlbumPhoto(url: string, timestamp: number, source: AlbumPhoto['source']): AlbumPhoto {
+  return {
+    id: crypto.randomUUID(),
+    url,
+    timestamp,
+    source,
+  };
+}
+
+function normalizeObject(obj: AnimismObject): { normalized: AnimismObject; changed: boolean } {
+  let changed = false;
+  const photos: AlbumPhoto[] = Array.isArray(obj.albumPhotos) ? [...obj.albumPhotos] : [];
+
+  if (!Array.isArray(obj.albumPhotos)) {
+    changed = true;
+  }
+
+  if (obj.snapshotUrl && !photos.some((photo) => photo.url === obj.snapshotUrl)) {
+    photos.unshift(createAlbumPhoto(obj.snapshotUrl, obj.capturedAt || Date.now(), 'initial'));
+    changed = true;
+  }
+
+  if (photos.length === 0 && obj.snapshotUrl) {
+    photos.push(createAlbumPhoto(obj.snapshotUrl, obj.capturedAt || Date.now(), 'initial'));
+    changed = true;
+  }
+
+  if (photos.length > 0 && obj.snapshotUrl !== photos[photos.length - 1].url) {
+    changed = true;
+  }
+
+  const normalized: AnimismObject = {
+    ...obj,
+    albumPhotos: photos,
+    snapshotUrl: photos.length > 0 ? photos[photos.length - 1].url : obj.snapshotUrl,
+  };
+
+  return { normalized, changed };
+}
+
 export function getCollections(): Record<string, AnimismObject> {
   try {
     const raw = localStorage.getItem(COLLECTIONS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const parsed = raw ? (JSON.parse(raw) as Record<string, AnimismObject>) : {};
+    let changed = false;
+    const normalizedEntries = Object.entries(parsed).map(([id, obj]) => {
+      const result = normalizeObject(obj);
+      if (result.changed) changed = true;
+      return [id, result.normalized] as const;
+    });
+    const normalized = Object.fromEntries(normalizedEntries);
+    if (changed) {
+      localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(normalized));
+    }
+    return normalized;
   } catch {
     return {};
   }
@@ -24,7 +75,7 @@ export function getObject(id: string): AnimismObject | null {
 
 export function saveObject(obj: AnimismObject): void {
   const collections = getCollections();
-  collections[obj.id] = obj;
+  collections[obj.id] = normalizeObject(obj).normalized;
   localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
 }
 
@@ -53,6 +104,26 @@ export function recordEncounter(id: string): void {
   collections[id].stats.totalEncounters += 1;
   collections[id].stats.lastSeenAt = Date.now();
   localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+}
+
+export function addObjectPhoto(id: string, snapshotUrl: string): AnimismObject | null {
+  const collections = getCollections();
+  const target = collections[id];
+  if (!target) return null;
+
+  const nextPhotos = [
+    ...(target.albumPhotos ?? []),
+    createAlbumPhoto(snapshotUrl, Date.now(), 're-encounter'),
+  ];
+
+  const updated: AnimismObject = {
+    ...target,
+    snapshotUrl,
+    albumPhotos: nextPhotos,
+  };
+  collections[id] = updated;
+  localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+  return updated;
 }
 
 export function getMemories(objectId?: string): Memory[] {

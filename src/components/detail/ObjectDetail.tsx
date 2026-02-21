@@ -20,6 +20,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 
 export function ObjectDetail({ object, onBack, onChat, onDelete }: Props) {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const memories = getMemories(object.id);
   const daysSince = Math.floor((Date.now() - object.capturedAt) / 86400000);
   const lastSeen = Math.floor((Date.now() - object.stats.lastSeenAt) / 86400000);
@@ -119,6 +120,31 @@ export function ObjectDetail({ object, onBack, onChat, onDelete }: Props) {
         )}
       </div>
 
+      {/* Album */}
+      {object.albumPhotos.length > 0 && (
+        <div className="px-4 mt-5 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-white/30 text-xs">アルバム</p>
+            <p className="text-white/40 text-xs">{object.albumPhotos.length}枚</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {object.albumPhotos
+              .slice()
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .map((photo) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setSelectedPhoto(photo.url)}
+                  className="aspect-square rounded-xl overflow-hidden active:scale-95 transition-transform"
+                  style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+                >
+                  <img src={photo.url} alt={object.name} className="w-full h-full object-cover" />
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Speech style */}
       {object.personality.speechStyle && (
         <div className="px-4 mt-4 flex-shrink-0">
@@ -182,6 +208,22 @@ export function ObjectDetail({ object, onBack, onChat, onDelete }: Props) {
                 閉じる
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.88)' }}>
+          <div className="w-full max-w-md">
+            <img src={selectedPhoto} alt={object.name} className="w-full h-auto rounded-2xl"
+              style={{ border: '1px solid rgba(255,255,255,0.18)' }} />
+            <button
+              onClick={() => setSelectedPhoto(null)}
+              className="w-full mt-3 py-2.5 rounded-xl text-sm font-medium text-white"
+              style={{ background: 'rgba(255,255,255,0.1)' }}>
+              閉じる
+            </button>
           </div>
         </div>
       )}

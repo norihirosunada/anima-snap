@@ -6,6 +6,13 @@ export interface ObjectPersonality {
   tone: string;
 }
 
+export interface AlbumPhoto {
+  id: string;
+  url: string;
+  timestamp: number;
+  source: 'initial' | 're-encounter' | 'manual';
+}
+
 export interface AnimismObject {
   id: string;
   name: string;
@@ -14,6 +21,7 @@ export interface AnimismObject {
   affinity: number; // 0-100
   capturedAt: number;
   snapshotUrl: string; // base64 data URL
+  albumPhotos: AlbumPhoto[];
   awakeningVideoUrl?: string; // Veo generated video URL
   questionnaire?: QuestionnaireAnswer[];
   stats: {
