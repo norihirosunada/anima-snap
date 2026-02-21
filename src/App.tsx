@@ -3,7 +3,7 @@ import { CaptureScreen } from './components/capture/CaptureScreen';
 import { CollectionList } from './components/collection/CollectionList';
 import { ChatScreen } from './components/chat/ChatScreen';
 import { ObjectDetail } from './components/detail/ObjectDetail';
-import { Navigation } from './components/common/Navigation';
+
 import { AdminScreen } from './components/admin/AdminScreen';
 import { deleteObject } from './lib/storage';
 import type { AnimismObject, AppScreen } from './lib/types';
@@ -98,10 +98,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Bottom navigation */}
-      {screen !== 'admin' && (
-        <Navigation current={screen} onChange={setScreen} />
-      )}
+      {/* Bottom navigation removed per design update */}
     </div>
   );
 }
