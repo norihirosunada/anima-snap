@@ -28,6 +28,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [newObject, setNewObject] = useState<AnimismObject | null>(null);
   const [awakeningVideoUrl, setAwakeningVideoUrl] = useState<string | null>(null);
+  const [awakeningVideoReady, setAwakeningVideoReady] = useState(false);
   const [reencounterObj, setReencounterObj] = useState<AnimismObject | null>(null);
   const [reencounterComment, setReencounterComment] = useState<string>('');
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
@@ -129,46 +130,58 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
       // All questions answered — generate personality and awakening
       if (!newObject) return;
       setCaptureState('awakening');
+      setAwakeningVideoReady(false);
 
       try {
         const frame = newObject.snapshotUrl.split(',')[1];
-        const [personality, videoUrl] = await Promise.all([
-          generatePersonality(frame, newObject.name, newObject.type, newAnswers),
-          generateAwakeningVideo(newObject.name, newObject.type, {
-            traits: [],
-            speechStyle: '',
-            backstory: '',
-            nickname: '',
-            tone: 'magical and ethereal',
-          }),
-        ]);
 
+        // personality を先に生成し、キャラクター確定後すぐ AwakeningPlayer を表示
+        const personality = await generatePersonality(frame, newObject.name, newObject.type, newAnswers);
         const finalAffinity = Math.min(100, affinityScore + newAnswers.length * 5);
         const completedObj: AnimismObject = {
           ...newObject,
           personality,
           affinity: finalAffinity,
           questionnaire: newAnswers,
-          awakeningVideoUrl: videoUrl ?? undefined,
         };
-
-        saveObject(completedObj);
-        addMemory({
-          objectId: completedObj.id,
-          timestamp: Date.now(),
-          type: 'awakening',
-          content: `${completedObj.personality.nickname}が覚醒した。「${personality.backstory.slice(0, 60)}…」`,
-          snapshotUrl: completedObj.snapshotUrl,
-        });
-
         setNewObject(completedObj);
-        setAwakeningVideoUrl(videoUrl);
+
+        // Veo 動画生成 — 生成中も AwakeningPlayer は写真+パーティクルを表示し続ける
+        // 完了したら videoReady=true で動画クロスフェードを開始
+        generateAwakeningVideo(frame, completedObj.name, completedObj.type, personality)
+          .then((videoUrl) => {
+            const withVideo: AnimismObject = { ...completedObj, awakeningVideoUrl: videoUrl ?? undefined };
+            setNewObject(withVideo);
+            setAwakeningVideoUrl(videoUrl);
+            setAwakeningVideoReady(true);
+            saveObject(withVideo);
+            addMemory({
+              objectId: withVideo.id,
+              timestamp: Date.now(),
+              type: 'awakening',
+              content: `${withVideo.personality.nickname}が覚醒した。「${personality.backstory.slice(0, 60)}…」`,
+              snapshotUrl: withVideo.snapshotUrl,
+            });
+          })
+          .catch((e) => {
+            console.error('Veo error:', e);
+            // 動画なしでも覚醒演出は続行
+            setAwakeningVideoReady(true);
+            saveObject(completedObj);
+            addMemory({
+              objectId: completedObj.id,
+              timestamp: Date.now(),
+              type: 'awakening',
+              content: `${completedObj.personality.nickname}が覚醒した。`,
+              snapshotUrl: completedObj.snapshotUrl,
+            });
+          });
       } catch (e) {
         console.error(e);
-        // Proceed without video
         if (newObject) {
           saveObject(newObject);
           setNewObject(newObject);
+          setAwakeningVideoReady(true);
         }
       }
     }
@@ -181,6 +194,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
     setCaptureState('idle');
     setNewObject(null);
     setAwakeningVideoUrl(null);
+    setAwakeningVideoReady(false);
     setAnswers([]);
     setQuestions([]);
   }, [newObject, onObjectRegistered]);
@@ -216,6 +230,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
         <AwakeningPlayer
           object={newObject}
           videoUrl={awakeningVideoUrl}
+          videoReady={awakeningVideoReady}
           onComplete={handleAwakeningComplete}
         />
       )}

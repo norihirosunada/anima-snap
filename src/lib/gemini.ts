@@ -7,6 +7,20 @@ function getClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
+function getApiKey(): string {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not set');
+  return apiKey;
+}
+
+function bytesToBlobUrl(base64Bytes: string, mimeType: string): string {
+  const binary = atob(base64Bytes);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mimeType });
+  return URL.createObjectURL(blob);
+}
+
 // ── フレーム解析: 既存コレクションと照合しつつオブジェクト認識 ──
 export async function analyzeFrame(
   base64Image: string,
@@ -217,40 +231,84 @@ Generate a short, warm greeting in Japanese (2-3 sentences) that:
   return response.text ?? `また会えたね。${obj.personality.nickname}はあなたのことを覚えているよ。`;
 }
 
-// ── Veo 3.1 覚醒動画生成 ──
+// ── Veo 3.1 覚醒動画生成 (image-to-video) ──
+// snapshotBase64: data URL プレフィックスなしの base64 JPEG 文字列
 export async function generateAwakeningVideo(
-  objectName: string,
-  objectType: string,
-  personality: AnimismObject['personality']
+  snapshotBase64: string,
+  _objectName: string,
+  _objectType: string,
+  _personality: AnimismObject['personality']
 ): Promise<string | null> {
   const ai = getClient();
+  const apiKey = getApiKey();
 
-  const prompt = `A ${objectType} called "${objectName}" magically awakens with a glowing spirit soul.
-The object begins to shimmer and glow with ${personality.tone} energy.
-Ethereal light particles surround it, cinematic, magical realism, 4K, beautiful lighting.`;
+  const prompt = `顔がモノに現れて目覚める瞬間をアニメ的に表現してください`;
 
   try {
     const operation = await ai.models.generateVideos({
       model: 'veo-3.1-generate-preview',
       prompt,
+      image: {
+        imageBytes: snapshotBase64,
+        mimeType: 'image/jpeg',
+      },
       config: {
         numberOfVideos: 1,
-        durationSeconds: 5,
+        durationSeconds: 4,
       },
     });
 
-    // ポーリングで完了を待つ
+    // ポーリングで完了を待つ (最大 3 分)
     let result = operation;
+    const deadline = Date.now() + 3 * 60 * 1000;
     while (!result.done) {
-      await new Promise((r) => setTimeout(r, 3000));
+      if (Date.now() > deadline) {
+        console.warn('Veo generation timed out');
+        return null;
+      }
+      await new Promise((r) => setTimeout(r, 4000));
       result = await ai.operations.getVideosOperation({ operation: result });
     }
 
     const videos = result.response?.generatedVideos;
     if (!videos || videos.length === 0) return null;
 
-    const video = videos[0];
-    if (video.video?.uri) return video.video.uri;
+    const generated = videos[0];
+
+    // videoBytes が返る場合は blob URL に変換
+    if (generated.video?.videoBytes) {
+      const mimeType = generated.video.mimeType ?? 'video/mp4';
+      return bytesToBlobUrl(generated.video.videoBytes, mimeType);
+    }
+
+    // uri が返る場合は実データを取得して blob URL 化（<video> 直指定だと認証付きURLを再生できない場合がある）
+    if (generated.video?.uri) {
+      const uri = generated.video.uri;
+      if (uri.startsWith('http://') || uri.startsWith('https://')) {
+        try {
+          const withKey = await fetch(uri, {
+            headers: { 'x-goog-api-key': apiKey },
+          });
+          if (withKey.ok) {
+            const blob = await withKey.blob();
+            return URL.createObjectURL(blob);
+          }
+        } catch {
+          // fallback でヘッダーなし取得を試す
+        }
+
+        try {
+          const direct = await fetch(uri);
+          if (direct.ok) {
+            const blob = await direct.blob();
+            return URL.createObjectURL(blob);
+          }
+        } catch {
+          // no-op
+        }
+      }
+      console.warn('Generated video URI is not directly playable in browser:', uri);
+    }
 
     return null;
   } catch (e) {
