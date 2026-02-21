@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getMemories } from '../../lib/storage';
 import type { AnimismObject } from '../../lib/types';
 
@@ -17,6 +18,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 }
 
 export function ObjectDetail({ object, onBack, onChat }: Props) {
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
   const memories = getMemories(object.id);
   const daysSince = Math.floor((Date.now() - object.capturedAt) / 86400000);
   const lastSeen = Math.floor((Date.now() - object.stats.lastSeenAt) / 86400000);
@@ -120,7 +122,18 @@ export function ObjectDetail({ object, onBack, onChat }: Props) {
       )}
 
       {/* Action button */}
-      <div className="px-4 mt-6 mb-10 flex-shrink-0">
+      <div className="px-4 mt-6 mb-10 flex-shrink-0 space-y-2">
+        {object.awakeningVideoUrl && (
+          <button
+            onClick={() => setIsVideoOpen(true)}
+            className="w-full py-3 rounded-2xl text-white/90 font-medium text-sm transition-all active:scale-98"
+            style={{
+              background: 'rgba(34,211,238,0.16)',
+              border: '1px solid rgba(34,211,238,0.35)',
+            }}>
+            覚醒動画を再生する
+          </button>
+        )}
         <button
           onClick={onChat}
           className="w-full py-4 rounded-2xl text-white font-medium text-sm transition-all active:scale-98"
@@ -132,6 +145,30 @@ export function ObjectDetail({ object, onBack, onChat }: Props) {
           {object.personality.nickname} に話しかける ✦
         </button>
       </div>
+
+      {isVideoOpen && object.awakeningVideoUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.88)' }}>
+          <div className="w-full max-w-md rounded-2xl overflow-hidden"
+            style={{ background: 'rgba(10,8,20,0.96)', border: '1px solid rgba(255,255,255,0.14)' }}>
+            <video
+              src={object.awakeningVideoUrl}
+              controls
+              autoPlay
+              playsInline
+              className="w-full h-auto"
+            />
+            <div className="p-3">
+              <button
+                onClick={() => setIsVideoOpen(false)}
+                className="w-full py-2.5 rounded-xl text-sm font-medium text-white"
+                style={{ background: 'rgba(255,255,255,0.1)' }}>
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
