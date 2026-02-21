@@ -328,8 +328,7 @@ Generate a short, warm greeting in Japanese (2-3 sentences) that:
 export async function generateAwakeningVideo(
   snapshotBase64: string,
   _objectName: string,
-  _objectType: string,
-  _personality: AnimismObject['personality']
+  _objectType: string
 ): Promise<string | null> {
   const ai = getClient();
   const apiKey = getApiKey();

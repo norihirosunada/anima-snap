@@ -36,6 +36,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isProcessingRef = useRef(false);
+  const videoPromiseRef = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     if (!hasApiKey()) setApiKeyMissing(true);
@@ -106,6 +107,14 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
             stats: { totalEncounters: 1, lastSeenAt: Date.now() },
           };
           setNewObject(partialObj);
+
+          // Kick off Veo 3.1 generation in the background concurrently
+          videoPromiseRef.current = generateAwakeningVideo(frame, result.objectName, result.objectType)
+            .catch((e) => {
+              console.error('Background Veo error:', e);
+              return null;
+            });
+
           setCaptureState('questionnaire');
         }
       } catch (e) {
@@ -136,47 +145,34 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
       try {
         const frame = newObject.snapshotUrl.split(',')[1];
 
-        // personality を先に生成し、キャラクター確定後すぐ AwakeningPlayer を表示
-        const personality = await generatePersonality(frame, newObject.name, newObject.type, newAnswers);
+        // Fetch personality and wait for background video generation to finish (or immediately if already done)
+        const [personality, videoUrl] = await Promise.all([
+          generatePersonality(frame, newObject.name, newObject.type, newAnswers),
+          videoPromiseRef.current ?? Promise.resolve(null),
+        ]);
+
         const finalAffinity = Math.min(100, affinityScore + newAnswers.length * 5);
         const completedObj: AnimismObject = {
           ...newObject,
           personality,
           affinity: finalAffinity,
           questionnaire: newAnswers,
+          awakeningVideoUrl: videoUrl ?? undefined,
         };
-        setNewObject(completedObj);
 
-        // Veo 動画生成 — 生成中も AwakeningPlayer は写真+パーティクルを表示し続ける
-        // 完了したら videoReady=true で動画クロスフェードを開始
-        generateAwakeningVideo(frame, completedObj.name, completedObj.type, personality)
-          .then((videoUrl) => {
-            const withVideo: AnimismObject = { ...completedObj, awakeningVideoUrl: videoUrl ?? undefined };
-            setNewObject(withVideo);
-            setAwakeningVideoUrl(videoUrl);
-            setAwakeningVideoReady(true);
-            saveObject(withVideo);
-            addMemory({
-              objectId: withVideo.id,
-              timestamp: Date.now(),
-              type: 'awakening',
-              content: `${withVideo.personality.nickname}が覚醒した。「${personality.backstory.slice(0, 60)}…」`,
-              snapshotUrl: withVideo.snapshotUrl,
-            });
-          })
-          .catch((e) => {
-            console.error('Veo error:', e);
-            // 動画なしでも覚醒演出は続行
-            setAwakeningVideoReady(true);
-            saveObject(completedObj);
-            addMemory({
-              objectId: completedObj.id,
-              timestamp: Date.now(),
-              type: 'awakening',
-              content: `${completedObj.personality.nickname}が覚醒した。`,
-              snapshotUrl: completedObj.snapshotUrl,
-            });
-          });
+        setNewObject(completedObj);
+        setAwakeningVideoUrl(videoUrl);
+        setAwakeningVideoReady(true);
+        saveObject(completedObj);
+
+        addMemory({
+          objectId: completedObj.id,
+          timestamp: Date.now(),
+          type: 'awakening',
+          content: `${completedObj.personality.nickname}が覚醒した。「${personality.backstory.slice(0, 60)}…」`,
+          snapshotUrl: completedObj.snapshotUrl,
+        });
+
       } catch (e) {
         console.error(e);
         if (newObject) {
@@ -201,6 +197,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
     setNewObject(null);
     setAwakeningVideoUrl(null);
     setAwakeningVideoReady(false);
+    videoPromiseRef.current = null;
     setAnswers([]);
     setQuestions([]);
   }, [newObject, onObjectRegistered]);
