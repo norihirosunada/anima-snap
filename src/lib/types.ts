@@ -36,7 +36,7 @@ export interface Memory {
   snapshotUrl?: string;
 }
 
-export type AppScreen = 'capture' | 'collection' | 'chat' | 'detail';
+export type AppScreen = 'capture' | 'collection' | 'chat' | 'detail' | 'admin';
 
 export type CaptureState =
   | 'idle'

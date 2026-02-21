@@ -13,6 +13,7 @@ import type { CaptureState, AnimismObject, QuestionItem, QuestionnaireAnswer } f
 import { CameraView } from './CameraView';
 import { QuickReplyModal } from './QuickReplyModal';
 import { AwakeningPlayer } from './AwakeningPlayer';
+import { addAdminLog } from '../../lib/logger';
 
 interface Props {
   onObjectRegistered: (obj: AnimismObject) => void;
@@ -189,6 +190,11 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
 
   const handleAwakeningComplete = useCallback(() => {
     if (newObject) {
+      addAdminLog({
+        phase: 'object_registered',
+        label: 'Flow Completed & Registered',
+        payload: { id: newObject.id, name: newObject.name },
+      });
       onObjectRegistered(newObject);
     }
     setCaptureState('idle');

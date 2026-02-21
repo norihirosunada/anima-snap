@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { AnalyzeResult, AnimismObject, QuestionnaireAnswer, QuestionItem } from './types';
+import { addAdminLog, startTimer, endTimer } from './logger';
 
 function getClient(): GoogleGenAI {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -49,22 +50,51 @@ Analyze the main object in the image and respond ONLY with valid JSON in this fo
 
 If the object closely matches an existing one (same individual item based on appearance details like scratches, stickers, color), set isNew to false and provide the matchedId.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: [
-      {
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-        ],
-      },
-    ],
+  const processId = crypto.randomUUID();
+  addAdminLog({
+    phase: 'image_analysis_start',
+    label: 'Identify Object (Gemini 3 Flash)',
+    payload: { prompt, existingObjects: existingObjects.map(o => ({ id: o.id, name: o.name })) }
   });
+  startTimer(processId);
 
-  const text = response.text ?? '';
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Failed to parse Gemini response');
-  return JSON.parse(match[0]) as AnalyzeResult;
+  try {
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+          ],
+        },
+      ],
+    });
+
+    const text = response.text ?? '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Failed to parse Gemini response');
+
+    const result = JSON.parse(match[0]) as AnalyzeResult;
+
+    addAdminLog({
+      phase: 'image_analysis_success',
+      label: 'Identification Complete',
+      payload: result,
+      durationMs: endTimer(processId)
+    });
+
+    return result;
+  } catch (error: any) {
+    addAdminLog({
+      phase: 'image_analysis_error',
+      label: 'Identification Failed',
+      error: error.message,
+      durationMs: endTimer(processId)
+    });
+    throw error;
+  }
 }
 
 // ── クイックリプライ質問生成 ──
@@ -88,28 +118,59 @@ Respond ONLY with valid JSON array:
 
 Focus on: how long they've had it, special memories, how they feel about it.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: [
-      {
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-        ],
-      },
-    ],
+  const processId = crypto.randomUUID();
+  addAdminLog({
+    phase: 'question_generation_start',
+    label: 'Generate Questions (Gemini 3 Flash)',
+    payload: { prompt, objectName }
   });
+  startTimer(processId);
 
-  const text = response.text ?? '';
-  const match = text.match(/\[[\s\S]*\]/);
-  if (!match) {
-    return [
-      { id: 'q1', question: 'どのくらいの期間、一緒にいますか？', options: ['1年以内', '1〜3年', '3〜5年', '5年以上'] },
-      { id: 'q2', question: 'このモノへの思い入れは？', options: ['とても大切', 'まあまあ大切', '普通', 'なんとなく'] },
-      { id: 'q3', question: 'このモノと一緒に過ごす時間は？', options: ['毎日', '週に数回', '時々', 'たまに'] },
-    ];
+  try {
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+          ],
+        },
+      ],
+    });
+
+    const text = response.text ?? '';
+    const match = text.match(/\[[\s\S]*\]/);
+
+    let result: QuestionItem[];
+    if (!match) {
+      result = [
+        { id: 'q1', question: 'どのくらいの期間、一緒にいますか？', options: ['1年以内', '1〜3年', '3〜5年', '5年以上'] },
+        { id: 'q2', question: 'このモノへの思い入れは？', options: ['とても大切', 'まあまあ大切', '普通', 'なんとなく'] },
+        { id: 'q3', question: 'このモノと一緒に過ごす時間は？', options: ['毎日', '週に数回', '時々', 'たまに'] },
+      ];
+    } else {
+      result = JSON.parse(match[0]) as QuestionItem[];
+    }
+
+    addAdminLog({
+      phase: 'question_generation_success',
+      label: 'Questions Generated',
+      payload: result,
+      durationMs: endTimer(processId)
+    });
+
+    return result;
+  } catch (error: any) {
+    addAdminLog({
+      phase: 'question_generation_error',
+      label: 'Question Generation Failed',
+      error: error.message,
+      durationMs: endTimer(processId)
+    });
+    throw error;
   }
-  return JSON.parse(match[0]) as QuestionItem[];
 }
 
 // ── キャラクター・パーソナリティ生成 ──
@@ -139,30 +200,61 @@ Respond ONLY with valid JSON:
   "tone": "the emotional tone (e.g., 'gentle and nostalgic', 'mischievous and energetic')"
 }`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
-    contents: [
-      {
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-        ],
-      },
-    ],
+  const processId = crypto.randomUUID();
+  addAdminLog({
+    phase: 'personality_generation_start',
+    label: 'Generate Personality (Gemini 3.1 Pro)',
+    payload: { prompt, objectName, objectType, questionnaire }
   });
+  startTimer(processId);
 
-  const text = response.text ?? '';
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) {
-    return {
-      traits: ['神秘的', '静寂', '古い記憶'],
-      speechStyle: '静かで落ち着いた話し方',
-      backstory: `${objectName}は長い時間をあなたのそばで過ごし、多くの記憶を蓄えてきた。`,
-      nickname: '時の守り人',
-      tone: 'gentle and mysterious',
-    };
+  try {
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-pro-preview',
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+          ],
+        },
+      ],
+    });
+
+    const text = response.text ?? '';
+    const match = text.match(/\{[\s\S]*\}/);
+
+    let result: AnimismObject['personality'];
+    if (!match) {
+      result = {
+        traits: ['神秘的', '静寂', '古い記憶'],
+        speechStyle: '静かで落ち着いた話し方',
+        backstory: `${objectName}は長い時間をあなたのそばで過ごし、多くの記憶を蓄えてきた。`,
+        nickname: '時の守り人',
+        tone: 'gentle and mysterious',
+      };
+    } else {
+      result = JSON.parse(match[0]) as AnimismObject['personality'];
+    }
+
+    addAdminLog({
+      phase: 'personality_generation_success',
+      label: 'Personality Generated',
+      payload: result,
+      durationMs: endTimer(processId)
+    });
+
+    return result;
+  } catch (error: any) {
+    addAdminLog({
+      phase: 'personality_generation_error',
+      label: 'Personality Generation Failed',
+      error: error.message,
+      durationMs: endTimer(processId)
+    });
+    throw error;
   }
-  return JSON.parse(match[0]) as AnimismObject['personality'];
 }
 
 // ── チャット ──
@@ -244,6 +336,14 @@ export async function generateAwakeningVideo(
 
   const prompt = `顔がモノに現れて目覚める瞬間をアニメ的に表現してください`;
 
+  const processId = crypto.randomUUID();
+  addAdminLog({
+    phase: 'video_generation_start',
+    label: 'Generate Awakening Video (Veo 3.1)',
+    payload: { prompt, objectName: _objectName, objectType: _objectType }
+  });
+  startTimer(processId);
+
   try {
     const operation = await ai.models.generateVideos({
       model: 'veo-3.1-generate-preview',
@@ -271,19 +371,41 @@ export async function generateAwakeningVideo(
     }
 
     const videos = result.response?.generatedVideos;
-    if (!videos || videos.length === 0) return null;
+    if (!videos || videos.length === 0) {
+      addAdminLog({
+        phase: 'video_generation_error',
+        label: 'Video Generation Empty',
+        error: 'No videos returned',
+        durationMs: endTimer(processId)
+      });
+      return null;
+    }
 
     const generated = videos[0];
 
     // videoBytes が返る場合は blob URL に変換
     if (generated.video?.videoBytes) {
       const mimeType = generated.video.mimeType ?? 'video/mp4';
-      return bytesToBlobUrl(generated.video.videoBytes, mimeType);
+      const url = bytesToBlobUrl(generated.video.videoBytes, mimeType);
+      addAdminLog({
+        phase: 'video_generation_success',
+        label: 'Video Generated (Bytes)',
+        payload: { videoUrl: url },
+        durationMs: endTimer(processId)
+      });
+      return url;
     }
 
     // uri が返る場合は実データを取得して blob URL 化（<video> 直指定だと認証付きURLを再生できない場合がある）
     if (generated.video?.uri) {
       const uri = generated.video.uri;
+      addAdminLog({
+        phase: 'video_generation_success',
+        label: 'Video Generated (URI)',
+        payload: { videoUri: uri },
+        durationMs: endTimer(processId)
+      });
+
       if (uri.startsWith('http://') || uri.startsWith('https://')) {
         try {
           const withKey = await fetch(uri, {
@@ -311,8 +433,14 @@ export async function generateAwakeningVideo(
     }
 
     return null;
-  } catch (e) {
+  } catch (e: any) {
     console.warn('Veo video generation failed, using fallback:', e);
+    addAdminLog({
+      phase: 'video_generation_error',
+      label: 'Video Generation Failed',
+      error: e.message,
+      durationMs: endTimer(processId)
+    });
     return null;
   }
 }

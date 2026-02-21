@@ -4,6 +4,7 @@ import { CollectionList } from './components/collection/CollectionList';
 import { ChatScreen } from './components/chat/ChatScreen';
 import { ObjectDetail } from './components/detail/ObjectDetail';
 import { Navigation } from './components/common/Navigation';
+import { AdminScreen } from './components/admin/AdminScreen';
 import type { AnimismObject, AppScreen } from './lib/types';
 
 export default function App() {
@@ -38,6 +39,13 @@ export default function App() {
 
   return (
     <div className="relative w-full h-full bg-black">
+      {/* Hidden Admin Button (Top Left) */}
+      <button
+        onClick={() => setScreen('admin')}
+        className="absolute top-0 left-0 w-16 h-16 z-50 opacity-0"
+        aria-label="Admin Interface"
+      />
+
       {/* Screens */}
       <div className="absolute inset-0" style={{ display: screen === 'capture' ? 'block' : 'none' }}>
         <CaptureScreen
@@ -75,8 +83,16 @@ export default function App() {
         </div>
       )}
 
+      {screen === 'admin' && (
+        <div className="absolute inset-0 z-50">
+          <AdminScreen onBack={() => setScreen('capture')} />
+        </div>
+      )}
+
       {/* Bottom navigation */}
-      <Navigation current={screen} onChange={setScreen} />
+      {screen !== 'admin' && (
+        <Navigation current={screen} onChange={setScreen} />
+      )}
     </div>
   );
 }
