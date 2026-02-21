@@ -154,7 +154,7 @@ export function ObjectDetail({ object, onBack, onChat, onDelete }: Props) {
       )}
 
       {/* Action button */}
-      <div className="px-4 mt-6 mb-10 flex-shrink-0 space-y-2">
+      <div className="px-4 mt-6 flex-shrink-0 space-y-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)' }}>
         {object.awakeningVideoUrl && (
           <button
             onClick={() => setIsVideoOpen(true)}

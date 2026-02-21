@@ -296,7 +296,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
 
       {/* Collection Button (Minimal, Bottom Right) */}
       {(captureState === 'idle' || captureState === 'scanning') && (
-        <div className="absolute bottom-12 right-6 z-40">
+        <div className="absolute right-6 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 3rem)' }}>
           <button onClick={onOpenCollection}
             className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95"
             style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
@@ -341,7 +341,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
 
       {/* Capture button (Minimal) */}
       {captureState === 'idle' && camera.isReady && (
-        <div className="absolute bottom-20 left-0 right-0 z-30 flex justify-center">
+        <div className="absolute left-0 right-0 z-30 flex justify-center" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 5rem)' }}>
           <button
             onClick={startScanning}
             className="relative w-16 h-16 rounded-full transition-all active:scale-90 flex items-center justify-center group"
@@ -357,7 +357,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
 
       {/* Cancel scanning */}
       {captureState === 'scanning' && (
-        <div className="absolute bottom-20 left-0 right-0 z-30 flex justify-center">
+        <div className="absolute left-0 right-0 z-30 flex justify-center" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 5rem)' }}>
           <button
             onClick={() => setCaptureState('idle')}
             className="px-6 py-3 rounded-full text-sm text-white/60 transition-colors active:bg-white/20"

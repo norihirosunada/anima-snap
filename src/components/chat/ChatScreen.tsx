@@ -126,10 +126,11 @@ export function ChatScreen({ object, onBack }: Props) {
   }, [input, isSending, object]);
 
   return (
-    <div className="flex flex-col h-full"
+    <div className="flex flex-col h-full overflow-hidden"
       style={{ background: 'linear-gradient(180deg, #050010 0%, #0a0518 100%)' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-3 flex-shrink-0"
+      <div className="flex items-center gap-3 px-4 pb-3 flex-shrink-0"
+        style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))' }}
         style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <button onClick={onBack}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -161,7 +162,7 @@ export function ChatScreen({ object, onBack }: Props) {
 
       {/* Memory timeline */}
       {showMemories && (
-        <div className="flex-1 overflow-y-auto px-4 py-2">
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-2">
           <p className="text-white/30 text-xs mb-3 text-center">— 記憶のタイムライン —</p>
           {memories.length === 0 ? (
             <p className="text-white/30 text-xs text-center py-8">まだ記憶がありません</p>
@@ -173,7 +174,7 @@ export function ChatScreen({ object, onBack }: Props) {
 
       {/* Chat messages */}
       {!showMemories && (
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-4">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} gap-2`}>
               {msg.role === 'model' && object.snapshotUrl && (
@@ -219,7 +220,8 @@ export function ChatScreen({ object, onBack }: Props) {
       )}
 
       {/* Input bar */}
-      <div className="px-4 pb-8 pt-3 flex-shrink-0"
+      <div className="px-4 pt-3 flex-shrink-0"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
         style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(10px)' }}>
         <div className="flex gap-2 items-end">
           <div className="flex-1 rounded-2xl px-4 py-3"
