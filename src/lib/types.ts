@@ -6,11 +6,18 @@ export interface ObjectPersonality {
   tone: string;
 }
 
+export interface PhotoLocation {
+  latitude: number;
+  longitude: number;
+  placeName?: string;
+}
+
 export interface AlbumPhoto {
   id: string;
   url: string;
   timestamp: number;
   source: 'initial' | 're-encounter' | 'manual';
+  location?: PhotoLocation;
 }
 
 export interface AnimismObject {

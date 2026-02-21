@@ -77,7 +77,7 @@ export function ChatScreen({ object, onBack }: Props) {
     historyRef.current.push({ role: 'user', text });
 
     try {
-      const reply = await sendChatMessage(object, historyRef.current.slice(0, -1), text);
+      const reply = await sendChatMessage(object, historyRef.current.slice(0, -1), text, memories);
       const modelMsg: ChatMessage = { id: crypto.randomUUID(), role: 'model', text: reply, timestamp: Date.now() };
       setMessages((prev) => [...prev, modelMsg]);
       historyRef.current.push({ role: 'model', text: reply });
@@ -197,7 +197,7 @@ export function ChatScreen({ object, onBack }: Props) {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }}
               placeholder="メッセージを入力…"
               rows={1}
               className="w-full bg-transparent text-white text-sm resize-none outline-none placeholder-white/30"

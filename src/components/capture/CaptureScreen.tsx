@@ -9,6 +9,7 @@ import {
   hasApiKey,
 } from '../../lib/gemini';
 import { saveObject, recordEncounter, addMemory, getCollectionList, addObjectPhoto } from '../../lib/storage';
+import { captureLocation } from '../../lib/geolocation';
 import type { CaptureState, AnimismObject, QuestionItem, QuestionnaireAnswer } from '../../lib/types';
 import { CameraView } from './CameraView';
 import { QuickReplyModal } from './QuickReplyModal';
@@ -54,6 +55,9 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
     setCaptureState('scanning');
     setAffinityScore(0);
 
+    // 位置情報を並行して取得開始
+    const locationPromise = captureLocation().catch(() => null);
+
     // Auto-capture after 2s
     const timer = setTimeout(async () => {
       if (isProcessingRef.current) return;
@@ -68,7 +72,10 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
       }
 
       try {
-        const collections = getCollectionList();
+        const [collections, location] = await Promise.all([
+          Promise.resolve(getCollectionList()),
+          locationPromise,
+        ]);
         const result = await analyzeFrame(frame, collections);
 
         if (!result.isNew && result.matchedId) {
@@ -76,7 +83,7 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
           const existing = collections.find((c) => c.id === result.matchedId);
           if (existing) {
             const latestSnapshot = `data:image/jpeg;base64,${frame}`;
-            const updatedObject = addObjectPhoto(existing.id, latestSnapshot) ?? existing;
+            const updatedObject = addObjectPhoto(existing.id, latestSnapshot, location ?? undefined) ?? existing;
             const comment = await generateReencounterComment(existing, frame);
             recordEncounter(updatedObject.id);
             addMemory({
@@ -98,21 +105,23 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
           setCurrentQuestionIndex(0);
 
           // Store partial object data
+          const now = Date.now();
           const partialObj: AnimismObject = {
             id: crypto.randomUUID(),
             name: result.objectName,
             type: result.objectType,
             personality: { traits: [], speechStyle: '', backstory: '', nickname: '', tone: '' },
             affinity: affinityScore,
-            capturedAt: Date.now(),
+            capturedAt: now,
             snapshotUrl: `data:image/jpeg;base64,${frame}`,
             albumPhotos: [{
               id: crypto.randomUUID(),
               url: `data:image/jpeg;base64,${frame}`,
-              timestamp: Date.now(),
+              timestamp: now,
               source: 'initial',
+              ...(location ? { location } : {}),
             }],
-            stats: { totalEncounters: 1, lastSeenAt: Date.now() },
+            stats: { totalEncounters: 1, lastSeenAt: now },
           };
           setNewObject(partialObj);
 
@@ -282,18 +291,14 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
         </div>
       )}
 
-      {/* Top bar */}
+      {/* Collection Button (Minimal, Bottom Right) */}
       {(captureState === 'idle' || captureState === 'scanning') && (
-        <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-12 pb-4"
-          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)' }}>
-          <div>
-            <h1 className="text-white font-bold text-lg tracking-wide">アニミズム・スナップ</h1>
-            <p className="text-white/50 text-xs">モノに魂を宿す</p>
-          </div>
+        <div className="absolute bottom-12 right-6 z-40">
           <button onClick={onOpenCollection}
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
-            <span className="text-white text-lg">☰</span>
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
+            aria-label="Collection">
+            <span className="text-white/70 text-xl">☷</span>
           </button>
         </div>
       )}
@@ -331,29 +336,28 @@ export function CaptureScreen({ onObjectRegistered, onOpenCollection }: Props) {
         </div>
       )}
 
-      {/* Capture button */}
+      {/* Capture button (Minimal) */}
       {captureState === 'idle' && camera.isReady && (
-        <div className="absolute bottom-0 left-0 right-0 z-30 flex justify-center pb-24">
+        <div className="absolute bottom-12 left-0 right-0 z-30 flex justify-center">
           <button
             onClick={startScanning}
-            className="relative w-20 h-20 rounded-full transition-all active:scale-95"
+            className="relative w-16 h-16 rounded-full transition-all active:scale-90 flex items-center justify-center group"
             style={{
-              background: 'radial-gradient(circle, rgba(168,85,247,0.8), rgba(168,85,247,0.3))',
-              border: '3px solid rgba(168,85,247,0.8)',
-              boxShadow: '0 0 30px rgba(168,85,247,0.5)',
+              background: 'transparent',
+              border: '2px solid rgba(255,255,255,0.6)',
             }}
           >
-            <span className="text-2xl">✦</span>
+            <div className="w-12 h-12 rounded-full transition-all group-active:scale-90" style={{ background: 'rgba(255,255,255,0.4)', backdropFilter: 'blur(4px)' }} />
           </button>
         </div>
       )}
 
       {/* Cancel scanning */}
       {captureState === 'scanning' && (
-        <div className="absolute bottom-0 left-0 right-0 z-30 flex justify-center pb-24">
+        <div className="absolute bottom-12 left-0 right-0 z-30 flex justify-center">
           <button
             onClick={() => setCaptureState('idle')}
-            className="px-6 py-3 rounded-full text-sm text-white/60"
+            className="px-6 py-3 rounded-full text-sm text-white/60 transition-colors active:bg-white/20"
             style={{ background: 'rgba(255,255,255,0.1)' }}>
             キャンセル
           </button>

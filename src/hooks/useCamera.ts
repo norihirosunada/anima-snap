@@ -21,11 +21,12 @@ export function useCamera(): UseCameraReturn {
     startingRef.current = true;
     try {
       setError(null);
+      const isPortrait = window.innerHeight > window.innerWidth;
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: isPortrait ? 1080 : 1280 },
+          height: { ideal: isPortrait ? 1920 : 720 },
         },
         audio: false,
       });
