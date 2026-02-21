@@ -5,6 +5,7 @@ import { ChatScreen } from './components/chat/ChatScreen';
 import { ObjectDetail } from './components/detail/ObjectDetail';
 import { Navigation } from './components/common/Navigation';
 import { AdminScreen } from './components/admin/AdminScreen';
+import { deleteObject } from './lib/storage';
 import type { AnimismObject, AppScreen } from './lib/types';
 
 export default function App() {
@@ -24,6 +25,13 @@ export default function App() {
   }, []);
 
   const handleOpenCollection = useCallback(() => {
+    setScreen('collection');
+  }, []);
+
+  const handleDeleteObject = useCallback((id: string) => {
+    deleteObject(id);
+    setSelectedObject(null);
+    setCollectionRefresh((n) => n + 1);
     setScreen('collection');
   }, []);
 
@@ -70,6 +78,7 @@ export default function App() {
             object={selectedObject}
             onBack={handleBack}
             onChat={() => setScreen('chat')}
+            onDelete={handleDeleteObject}
           />
         </div>
       )}

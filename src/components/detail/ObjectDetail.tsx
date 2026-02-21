@@ -6,6 +6,7 @@ interface Props {
   object: AnimismObject;
   onBack: () => void;
   onChat: () => void;
+  onDelete: (id: string) => void;
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -17,12 +18,17 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-export function ObjectDetail({ object, onBack, onChat }: Props) {
+export function ObjectDetail({ object, onBack, onChat, onDelete }: Props) {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const memories = getMemories(object.id);
   const daysSince = Math.floor((Date.now() - object.capturedAt) / 86400000);
   const lastSeen = Math.floor((Date.now() - object.stats.lastSeenAt) / 86400000);
   const affinityColor = object.affinity > 70 ? '#a855f7' : object.affinity > 40 ? '#22d3ee' : '#60a5fa';
+  const handleDelete = () => {
+    const shouldDelete = window.confirm(`「${object.name}」をコレクションから削除しますか？`);
+    if (!shouldDelete) return;
+    onDelete(object.id);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-y-auto"
@@ -143,6 +149,16 @@ export function ObjectDetail({ object, onBack, onChat }: Props) {
             boxShadow: '0 0 30px rgba(168,85,247,0.3)',
           }}>
           {object.personality.nickname} に話しかける ✦
+        </button>
+        <button
+          onClick={handleDelete}
+          className="w-full py-3 rounded-2xl text-sm font-medium transition-all active:scale-98"
+          style={{
+            color: 'rgba(248,113,113,0.95)',
+            background: 'rgba(127,29,29,0.2)',
+            border: '1px solid rgba(248,113,113,0.35)',
+          }}>
+          このコレクションを削除
         </button>
       </div>
 

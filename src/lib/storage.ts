@@ -28,6 +28,17 @@ export function saveObject(obj: AnimismObject): void {
   localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
 }
 
+export function deleteObject(id: string): void {
+  const collections = getCollections();
+  if (!collections[id]) return;
+
+  delete collections[id];
+  localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+
+  const memories = getMemories().filter((memory) => memory.objectId !== id);
+  localStorage.setItem(MEMORIES_KEY, JSON.stringify(memories));
+}
+
 export function updateAffinity(id: string, delta: number): void {
   const collections = getCollections();
   if (!collections[id]) return;
