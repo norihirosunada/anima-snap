@@ -1,0 +1,42 @@
+name: Deploy to Firebase Hosting Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      expires:
+        description: 'Duration for the preview to live (e.g. 7d, 24h, 1h, 10m)'
+        required: true
+        default: '3h'
+        type: string
+
+jobs:
+  build_and_preview:
+    runs-on: ubuntu-latest
+    # 実行を許可するGitHubのユーザーIDのリスト。必要なユーザーをここに追加してください。
+    if: contains(fromJson('["norihirosunada", "kakira9618", "MasayukiTa"]'), github.actor)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build project
+        run: npm run build
+        env:
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          
+      - name: Deploy to Firebase Hosting Preview
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          channelId: preview-${{ github.ref_name }}
+          expires: ${{ inputs.expires }}
