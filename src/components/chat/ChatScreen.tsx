@@ -130,8 +130,7 @@ export function ChatScreen({ object, onBack }: Props) {
       style={{ background: 'linear-gradient(180deg, #050010 0%, #0a0518 100%)' }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pb-3 flex-shrink-0"
-        style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))' }}
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <button onClick={onBack}
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
           style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -221,8 +220,7 @@ export function ChatScreen({ object, onBack }: Props) {
 
       {/* Input bar */}
       <div className="px-4 pt-3 flex-shrink-0"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
-        style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(10px)' }}>
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(10px)' }}>
         <div className="flex gap-2 items-end">
           <div className="flex-1 rounded-2xl px-4 py-3"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>

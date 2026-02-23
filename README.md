@@ -138,3 +138,11 @@ export default defineConfig([
   },
 ])
 ```
+
+## GitHub Actions & Secrets
+
+To enable Firebase Preview deployment via GitHub Actions, configure the following secrets in your GitHub repository setting (`Settings` > `Secrets and variables` > `Actions`):
+
+- `VITE_GEMINI_API_KEY`: Your Gemini API key (needed to build the app).
+- `FIREBASE_SERVICE_ACCOUNT`: The JSON credentials for the Firebase service account. Provide the raw JSON output.
+- `FIREBASE_PROJECT_ID`: The ID of your Firebase project.
