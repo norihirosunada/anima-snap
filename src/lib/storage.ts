@@ -35,10 +35,18 @@ function normalizeObject(obj: AnimismObject): { normalized: AnimismObject; chang
     changed = true;
   }
 
+  const awakeningVideoUrl = obj.awakeningVideoUrl?.startsWith('blob:')
+    ? undefined
+    : obj.awakeningVideoUrl;
+  if (awakeningVideoUrl !== obj.awakeningVideoUrl) {
+    changed = true;
+  }
+
   const normalized: AnimismObject = {
     ...obj,
     albumPhotos: photos,
     snapshotUrl: photos.length > 0 ? photos[photos.length - 1].url : obj.snapshotUrl,
+    awakeningVideoUrl,
   };
 
   return { normalized, changed };

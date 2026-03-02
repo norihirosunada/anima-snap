@@ -69,6 +69,12 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  const base64 = await blobToBase64(blob);
+  const mimeType = blob.type && blob.type.length > 0 ? blob.type : 'video/mp4';
+  return `data:${mimeType};base64,${base64}`;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -602,13 +608,13 @@ export async function generateAwakeningVideo(
         });
         return url;
       } catch (uploadError) {
-        console.warn('Failed to save video to server, falling back to blob URL:', uploadError);
-        // フォールバック: blob URL
+        console.warn('Failed to save video to server, falling back to data URL:', uploadError);
+        // フォールバック: 永続化できる data URL
         const binary = atob(generated.video.videoBytes);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         const blob = new Blob([bytes], { type: mimeType });
-        return URL.createObjectURL(blob);
+        return await blobToDataUrl(blob);
       }
     }
 
@@ -654,8 +660,8 @@ export async function generateAwakeningVideo(
             const base64 = await blobToBase64(blob);
             return await saveVideoToServer(base64, fetchedMimeType);
           } catch (uploadError) {
-            console.warn('Failed to save video to server, falling back to blob URL:', uploadError);
-            return URL.createObjectURL(blob);
+            console.warn('Failed to save video to server, falling back to data URL:', uploadError);
+            return await blobToDataUrl(blob);
           }
         }
       }
