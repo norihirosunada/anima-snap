@@ -146,3 +146,24 @@ To enable Firebase Preview deployment via GitHub Actions, configure the followin
 - `VITE_GEMINI_API_KEY`: Your Gemini API key (needed to build the app).
 - `FIREBASE_SERVICE_ACCOUNT`: The JSON credentials for the Firebase service account. Provide the raw JSON output.
 - `FIREBASE_PROJECT_ID`: The ID of your Firebase project.
+
+## Troubleshooting: `TS2688 Cannot find type definition file`
+
+If build fails with errors like below, dependencies are not installed correctly (or devDependencies are omitted).
+
+- `Cannot find type definition file for 'vite/client'`
+- `Cannot find type definition file for 'node'`
+
+Use the following steps:
+
+```bash
+rm -rf node_modules
+npm ci
+npm run build
+```
+
+Notes:
+
+- `vite/client` types are provided by `vite` (devDependency).
+- `node` types are provided by `@types/node` (devDependency).
+- If CI uses `npm ci --omit=dev` (or `NODE_ENV=production` with dev deps skipped), TypeScript build will fail. Install devDependencies for build jobs.
